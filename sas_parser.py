@@ -260,7 +260,10 @@ class PageStitcher:
             else:
                 prev_blank = False
         if footnote_start is None:
-            return lines
+            result = list(lines)
+            while result and lc.is_blank(result[-1]):
+                result.pop()
+            return result
         result = list(lines[:footnote_start])
         while result and lc.is_blank(result[-1]):
             result.pop()
@@ -515,10 +518,10 @@ class BodyParser:
         merged: list[list[BodyCell]] = []
         for cells, src_line in raw_rows:
             if (merged
-                    and cells[0].indent == 0
                     and cells[0].text
                     and all(c.text == '' for c in cells[1:])
-                    and src_line and src_line[0] == ' '):
+                    and src_line and src_line[0] == ' '
+                    and any(c.text for c in merged[-1][1:])):
                 merged[-1][0] = BodyCell(
                     text=merged[-1][0].text + ' ' + cells[0].text,
                     indent=merged[-1][0].indent,
