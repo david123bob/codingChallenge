@@ -31,7 +31,7 @@ def test_small_no_footnote_in_output(small_html):
 
 
 def test_big_table_count(big_html):
-    assert big_html.count('class="table-section"') == 110
+    assert big_html.count('class="table-section"') == 189
 
 
 def test_big_no_cox_footnote_in_body(big_html):

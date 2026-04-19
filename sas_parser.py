@@ -48,6 +48,7 @@ class BodyCell:
 class TableBlock:
     title: str
     section_label: str = ""
+    context_label: str = ""   # sub-group context (e.g. "ECI RESPONSE = ECI RESPONDER...")
     header_lines: list[str] = field(default_factory=list)
     data_lines: list[str] = field(default_factory=list)
 
@@ -130,8 +131,10 @@ class PageStitcher:
             block = self._parse_page(page)
             if block is None:
                 continue
-            if blocks and self._same_title(blocks[-1].title, block.title):
-                # Continuation page — merge data only
+            if (blocks
+                    and self._same_title(blocks[-1].title, block.title)
+                    and blocks[-1].context_label == block.context_label):
+                # Continuation page (same table, same sub-group) — merge data only
                 blocks[-1].data_lines.extend(block.data_lines)
             else:
                 blocks.append(block)
@@ -208,6 +211,26 @@ class PageStitcher:
         while j < len(page_lines) and lc.is_blank(page_lines[j]):
             j += 1
 
+        # Optional context label: a col-0 non-structural line immediately after the
+        # section label (e.g. "ECI RESPONSE = ECI RESPONDER ...").  It is a secondary
+        # stitching key — pages with the same TABLE title but different context label
+        # belong to different logical tables.
+        context_label = ""
+        if j < len(page_lines):
+            line = page_lines[j]
+            if (line and line[0] != ' '
+                    and not lc.is_blank(line)
+                    and not lc.is_dash_rule(line)
+                    and not lc.is_full_rule(line)
+                    and not lc.is_table_title(line)
+                    and not lc.is_section_label(line)):
+                context_label = line.strip()
+                j += 1
+
+        # Skip blank lines before column headers
+        while j < len(page_lines) and lc.is_blank(page_lines[j]):
+            j += 1
+
         # Find the leaf dash rule — everything up to (and including) it is header_lines
         # Then the rest is data_lines
         header_lines: list[str] = []
@@ -230,6 +253,7 @@ class PageStitcher:
         return TableBlock(
             title=title,
             section_label=section_label,
+            context_label=context_label,
             header_lines=header_lines,
             data_lines=data_lines,
         )
@@ -696,6 +720,12 @@ body {
     margin-bottom: 2px;
     line-height: 1.4;
 }
+.table-context {
+    font-size: 10px;
+    font-weight: 600;
+    color: #2a4a7f;
+    margin: 1px 0 6px;
+}
 .table-subtitle {
     font-size: 10px;
     color: #666;
@@ -851,6 +881,8 @@ tbody tr:nth-child(even) td { background: #f7f8fa; }
         parts.append(f'  <h2 class="table-title">{escape(block.title)}</h2>')
         if block.section_label:
             parts.append(f'  <p class="table-subtitle">{escape(block.section_label)}</p>')
+        if block.context_label:
+            parts.append(f'  <p class="table-context">{escape(block.context_label)}</p>')
 
         groups = self._split_row_groups(rows)
         for label, group_rows in groups:
