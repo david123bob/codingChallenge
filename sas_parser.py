@@ -494,12 +494,26 @@ class BodyParser:
         leaf_cols: list[Column],
     ) -> list[list[BodyCell]]:
         lc = LineClassifier
-        rows = []
+        raw_rows: list[tuple[list[BodyCell], str]] = []
         for line in data_lines:
             if lc.is_blank(line) or lc.is_dash_rule(line):
                 continue
-            rows.append(self._extract_row(line, leaf_cols))
-        return rows
+            raw_rows.append((self._extract_row(line, leaf_cols), line))
+
+        merged: list[list[BodyCell]] = []
+        for cells, src_line in raw_rows:
+            if (merged
+                    and cells[0].indent == 0
+                    and cells[0].text
+                    and all(c.text == '' for c in cells[1:])
+                    and src_line and src_line[0] == ' '):
+                merged[-1][0] = BodyCell(
+                    text=merged[-1][0].text + ' ' + cells[0].text,
+                    indent=merged[-1][0].indent,
+                )
+            else:
+                merged.append(cells)
+        return merged
 
     def _extract_row(self, line: str, leaf_cols: list[Column]) -> list[BodyCell]:
         cells = []
