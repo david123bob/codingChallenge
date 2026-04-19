@@ -1,0 +1,17 @@
+# Output
+out/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+
+# Ruff / linting
+.ruff_cache/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,44 @@
+XLAB-553-5802 - FINAL ANALYSIS                                                                             09:57 Tuesday, October 27, 2023  
+                                                                                                                               Page 5 of 5  
+TABLE 57.5.5.5 : ANALYSIS SETS                                                                                                              
+------------------------------------------------------------------------------------------------------------------------------------------  
+ANALYSIS SET: ALL SCREENED PARTICIPANTS                                                                                                     
+                                                                                                                                            
+                                                    EFG PH20 SC            PBO PH20 SC            ALL PARTICIPANTS                          
+ ANALYSIS SET                                         n                      n                      n                                       
+ -------------------------------------------------- ---------------------- ---------------------- ----------------------                    
+ ALL SCREENED PARTICIPANTS SET                                                                    629                                       
+ RUN-IN ANALYSIS SET                                                                              306                                       
+                                                                                                                                            
+ STAGE A SAFETY ANALYSIS SET                        322                                           322                                       
+ STAGE A PHARMACOKINETICS ANALYSIS SET              325                                           325                                       
+ STAGE A PHARMACODYNAMICS ANALYSIS SET              325                                           325                                       
+ STAGE A IMMUNOGENICITY ANALYSIS SET                322                                           322                                       
+                                                                                                                                            
+ ALL RANDOMIZED PARTICIPANTS                        555                    550                    225                                       
+ STAGE B SAFETY ANALYSIS SET                        555                    550                    225                                       
+ STAGE B PHARMACOKINETICS ANALYSIS SET              555                    550                    225                                       
+ STAGE B PHARMACODYNAMICS ANALYSIS SET              555                    550                    225                                       
+ STAGE B IMMUNOGENICITY ANALYSIS SET                555                    550                    225                                       
+ MODIFIED INTENT-TO-TREAT ANALYSIS SET              555                    550                    225                                       
+ PER PROTOCOL ANALYSIS SET                           96                     88                    587                                       
+                                                                                                                                            
+ STAGE A + B SAFETY ANALYSIS SET                    555                                           555                                       
+ STAGE A + B IMMUNOGENICITY ANALYSIS SET            555                                           555                                       
+                                                                                                                                            
+                                                                                                                                            
+                                                                                                                                            
+                                                                                                                                            
+                                                                                                                                            
+                                                                                                                                            
+                                                                                                                                            
+                                                                                                                                            
+                                                                                                                                            
+                                                                                                                                            
+                                                                                                                                            
+                                                                                                                                            
+                                                                                                                                            
+                                                                                                                                            
+RANDOMIZED PARTICIPANTS, mITT AND PP ANALYSIS SETS WERE COUNTED USING RANDOMIZED TREATMENT WHEREAS OTHER ANALYSIS SETS                      
+WERE COUNTED USING ACTUAL TREATMENT                                                                                                         
+ 

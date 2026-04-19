@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python sas2html.py small.txt -o out/small.html)",
+      "Bash(python sas2html.py big.txt -o out/big.html)",
+      "Bash(python -c ' *)",
+      "Bash(pip install *)",
+      "Bash(ruff check *)",
+      "Bash(python -m ruff check sas_parser.py sas2html.py)"
+    ]
+  }
+}
