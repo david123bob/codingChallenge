@@ -66,3 +66,15 @@ def test_dash_rule_lines_skipped():
     lines = [" ROW ONE   10", " ----------  ----------", " ROW TWO   20"]
     rows = BP.extract_rows(lines, cols)
     assert len(rows) == 2
+
+
+def test_compute_rowspans_blank_col0():
+    cols = [Column(0, 14), Column(15, 35), Column(36, 50)]
+    lines = [
+        " TREATMENT     EFG VS PBO      -0.941",
+        "               PBO VS PBO       0.000",
+    ]
+    rows = BP.extract_rows(lines, cols)
+    rows = BP.compute_rowspans(rows)
+    assert rows[0][0].rowspan == 2
+    assert rows[1][0].skip is True

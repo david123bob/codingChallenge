@@ -40,6 +40,8 @@ class BodyCell:
     text: str
     indent: int = 0  # leading spaces in first column → padding-left
     colspan: int = 1
+    rowspan: int = 1
+    skip: bool = False  # True = covered by a rowspan above, omit the <td>
 
 
 @dataclass
@@ -561,6 +563,20 @@ class BodyParser:
             return 'center'
         return 'left'
 
+    def compute_rowspans(self, rows: list[list[BodyCell]]) -> list[list[BodyCell]]:
+        last_nonempty: int | None = None
+        for r, row in enumerate(rows):
+            if not row:
+                continue
+            col0 = row[0]
+            if col0.text:
+                last_nonempty = r
+            elif any(c.text for c in row[1:]):
+                if last_nonempty is not None:
+                    rows[last_nonempty][0].rowspan += 1
+                    col0.skip = True
+        return rows
+
 
 # ---------------------------------------------------------------------------
 # HTMLRenderer
@@ -839,6 +855,8 @@ tbody tr:nth-child(even) td { background: #f7f8fa; }
         for row in rows:
             parts.append('      <tr>')
             for ci, cell in enumerate(row):
+                if cell.skip:
+                    continue
                 align_class = ''
                 if ci < len(leaf_cols):
                     a = leaf_cols[ci].align
@@ -847,7 +865,8 @@ tbody tr:nth-child(even) td { background: #f7f8fa; }
                 if ci == 0 and cell.indent > 0:
                     indent_style = f' style="padding-left:{cell.indent + 2}ch"'
                 cs = f' colspan="{cell.colspan}"' if cell.colspan > 1 else ''
-                parts.append(f'        <td{align_class}{indent_style}{cs}>{escape(cell.text)}</td>')
+                rs = f' rowspan="{cell.rowspan}"' if cell.rowspan > 1 else ''
+                parts.append(f'        <td{align_class}{indent_style}{cs}{rs}>{escape(cell.text)}</td>')
             parts.append('      </tr>')
         parts.append('    </tbody>')
         parts.append('  </table>')
@@ -876,6 +895,7 @@ def convert(input_text: str) -> str:
         leaf_cols = detector.leaf_columns(block.header_lines)
         headers = header_parser.build(block.header_lines, leaf_cols)
         rows = body_parser.extract_rows(block.data_lines, leaf_cols)
+        rows = body_parser.compute_rowspans(rows)
 
         for ci, col in enumerate(leaf_cols):
             col.align = body_parser.detect_alignment(rows, ci)
