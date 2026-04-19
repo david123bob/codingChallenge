@@ -63,8 +63,7 @@ class LineClassifier:
     _PAGE_NUMBER = re.compile(r'Page\s+\d+\s+of\s+\d+', re.IGNORECASE)
     _TABLE_TITLE = re.compile(r'^TABLE\b', re.IGNORECASE)
     _SECTION_LABEL = re.compile(r'^ANALYSIS SET\s*:', re.IGNORECASE)
-    # Footnote: starts at col 0 with capital letter, bracket, or typical footnote starters
-    _FOOTNOTE_START = re.compile(r'^[A-Z\[\*]')
+
 
     @staticmethod
     def is_blank(line: str) -> bool:
@@ -103,12 +102,14 @@ class LineClassifier:
 
     @classmethod
     def is_footnote_line(cls, line: str) -> bool:
-        """A footnote starts at column 0 with uppercase/bracket (not a table title)."""
+        """Any col-0, non-blank, non-structural, non-rule line is a footnote candidate."""
         if not line or line[0] == ' ':
             return False
         if cls.is_table_title(line) or cls.is_page_header(line) or cls.is_section_label(line):
             return False
-        return bool(cls._FOOTNOTE_START.match(line))
+        if cls.is_full_rule(line) or cls.is_dash_rule(line):
+            return False
+        return True
 
 
 # ---------------------------------------------------------------------------
@@ -232,25 +233,36 @@ class PageStitcher:
         )
 
     def _find_leaf_rule_idx(self, lines: list[str]) -> int | None:
-        """Find the index of the last dash_rule that appears before actual data rows.
-        Strategy: scan forward; the last dash_rule before a non-blank, non-rule line is the leaf."""
-        lc = LineClassifier
-        last_rule = None
+        """Return the dash rule with the most dash runs — that is the leaf column ruler.
+        Ties go to the first occurrence (earlier in the header wins)."""
+        best_idx: int | None = None
+        best_runs = 0
         for i, line in enumerate(lines):
-            if lc.is_dash_rule(line):
-                last_rule = i
-            elif not lc.is_blank(line) and last_rule is not None:
-                # We hit a data line after seeing at least one rule
-                break
-        return last_rule
+            if LineClassifier.is_dash_rule(line):
+                runs = len(LineClassifier._DASH_RUN.findall(line))
+                if runs > best_runs:
+                    best_runs = runs
+                    best_idx = i
+        return best_idx
 
     def _strip_footnotes(self, lines: list[str]) -> list[str]:
-        """Remove trailing footnote lines (col-0 uppercase/bracket after the body)."""
+        """Strip footnotes by forward-scanning for the first col-0 non-structural line
+        that is preceded by a blank line — that marks the footnote zone start."""
         lc = LineClassifier
-        # Find last non-blank data line index
-        result = list(lines)
-        # Walk backwards from end, dropping footnote+blank runs
-        while result and (lc.is_blank(result[-1]) or lc.is_footnote_line(result[-1])):
+        prev_blank = False
+        footnote_start: int | None = None
+        for i, line in enumerate(lines):
+            if lc.is_blank(line):
+                prev_blank = True
+            elif lc.is_footnote_line(line) and prev_blank:
+                footnote_start = i
+                break
+            else:
+                prev_blank = False
+        if footnote_start is None:
+            return lines
+        result = list(lines[:footnote_start])
+        while result and lc.is_blank(result[-1]):
             result.pop()
         return result
 

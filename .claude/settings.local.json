@@ -6,7 +6,10 @@
       "Bash(python -c ' *)",
       "Bash(pip install *)",
       "Bash(ruff check *)",
-      "Bash(python -m ruff check sas_parser.py sas2html.py)"
+      "Bash(python -m ruff check sas_parser.py sas2html.py)",
+      "Bash(python -m ruff check .)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }
