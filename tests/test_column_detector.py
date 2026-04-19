@@ -52,3 +52,16 @@ def test_leaf_rule_tie_prefers_first():
     ]
     idx = PageStitcher()._find_leaf_rule_idx(lines)
     assert idx == 0
+
+
+def test_leaf_rule_multi_run_tie_prefers_last():
+    # Two dash rules with equal run counts (≥2): the LAST is the leaf (sits just above data)
+    lines = [
+        "             ACTUAL VALUES      CHANGES FROM BASELINE",
+        "             ------------------ ------------------",   # 2 runs — intermediate
+        "             EFG PH70 SC        EFG PH70 SC",
+        "             (N=322)            (N=322)",
+        "             ------------------ ------------------",   # 2 runs — leaf
+    ]
+    idx = PageStitcher()._find_leaf_rule_idx(lines)
+    assert idx == 4

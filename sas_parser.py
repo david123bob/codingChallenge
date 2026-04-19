@@ -236,13 +236,15 @@ class PageStitcher:
 
     def _find_leaf_rule_idx(self, lines: list[str]) -> int | None:
         """Return the dash rule with the most dash runs — that is the leaf column ruler.
-        Ties go to the first occurrence (earlier in the header wins)."""
+        Ties with 1 run go to the first occurrence (column ruler beats section-header dash).
+        Ties with 2+ runs go to the last occurrence (intermediate rule before column names
+        must lose to the actual leaf rule immediately above the data)."""
         best_idx: int | None = None
         best_runs = 0
         for i, line in enumerate(lines):
             if LineClassifier.is_dash_rule(line):
                 runs = len(LineClassifier._DASH_RUN.findall(line))
-                if runs > best_runs:
+                if runs > best_runs or (runs == best_runs and runs >= 2):
                     best_runs = runs
                     best_idx = i
         return best_idx
@@ -523,7 +525,8 @@ class BodyParser:
                     and cells[0].text
                     and all(c.text == '' for c in cells[1:])
                     and src_line and src_line[0] == ' '
-                    and any(c.text for c in merged[-1][1:])):
+                    and any(c.text for c in merged[-1][1:])
+                    and cells[0].indent >= merged[-1][0].indent):
                 merged[-1][0] = BodyCell(
                     text=merged[-1][0].text + ' ' + cells[0].text,
                     indent=merged[-1][0].indent,
@@ -703,6 +706,16 @@ body {
     overflow-x: auto;
     max-width: 100%;
 }
+.sub-table-label {
+    font-size: 11px;
+    font-weight: 700;
+    font-family: system-ui, sans-serif;
+    color: #1a1a2e;
+    margin: 1.2rem 0 0.3rem;
+    padding-bottom: 2px;
+    border-bottom: 1px solid #c8cad4;
+}
+.sub-table-label:first-of-type { margin-top: 0.4rem; }
 /* ── ICH E3 / CTD publication-style table ── */
 table { border-collapse: collapse; width: auto; font-size: 10.5px; }
 thead tr:first-child th { border-top: 1.5px solid #1a1a2e; }
@@ -838,9 +851,49 @@ tbody tr:nth-child(even) td { background: #f7f8fa; }
         parts.append(f'  <h2 class="table-title">{escape(block.title)}</h2>')
         if block.section_label:
             parts.append(f'  <p class="table-subtitle">{escape(block.section_label)}</p>')
-        parts.append('  <div class="table-wrap">')
-        parts.append('  <table>')
 
+        groups = self._split_row_groups(rows)
+        for label, group_rows in groups:
+            if label:
+                parts.append(f'  <h3 class="sub-table-label">{escape(label)}</h3>')
+            if not group_rows:
+                continue
+            parts.append('  <div class="table-wrap">')
+            parts.append(self._render_single_table(headers, group_rows, leaf_cols))
+            parts.append('  </div>')
+
+        parts.append('</section>')
+        return '\n'.join(parts)
+
+    def _split_row_groups(
+        self, rows: list[list[BodyCell]]
+    ) -> list[tuple[str, list[list[BodyCell]]]]:
+        """Split rows at section-divider rows (col-0 only, indent ≤ 3) when ≥2 exist.
+        Returns [(label, data_rows)]. Label is '' when no split is needed."""
+        dividers = [
+            i for i, row in enumerate(rows)
+            if row and row[0].text
+            and all(c.text == '' for c in row[1:])
+            and row[0].indent <= 3
+        ]
+        if len(dividers) < 2:
+            return [('', rows)]
+        groups: list[tuple[str, list[list[BodyCell]]]] = []
+        if dividers[0] > 0:
+            groups.append(('', rows[: dividers[0]]))
+        for k, d in enumerate(dividers):
+            end = dividers[k + 1] if k + 1 < len(dividers) else len(rows)
+            groups.append((rows[d][0].text, rows[d + 1 : end]))
+        return groups
+
+    def _render_single_table(
+        self,
+        headers: list[list[HeaderCell]],
+        rows: list[list[BodyCell]],
+        leaf_cols: list[Column],
+    ) -> str:
+        parts: list[str] = []
+        parts.append('  <table>')
         if headers:
             parts.append('    <thead>')
             for hrow in headers:
@@ -850,7 +903,6 @@ tbody tr:nth-child(even) td { background: #f7f8fa; }
                     parts.append(f'        <th{cs}>{escape(cell.text)}</th>')
                 parts.append('      </tr>')
             parts.append('    </thead>')
-
         parts.append('    <tbody>')
         for row in rows:
             parts.append('      <tr>')
@@ -870,9 +922,6 @@ tbody tr:nth-child(even) td { background: #f7f8fa; }
             parts.append('      </tr>')
         parts.append('    </tbody>')
         parts.append('  </table>')
-        parts.append('  </div>')
-        parts.append('</section>')
-
         return '\n'.join(parts)
 
 
