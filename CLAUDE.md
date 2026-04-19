@@ -4,13 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Build a command-line tool (`sas2html.py`) that reads SAS monospace text output and emits a single HTML file with semantic `<table>` elements. Everything outside tables (titles, footnotes, page numbers) is ignored.
+This is a coding challenge submission built entirely with vibe coding (AI-assisted development using Claude Code). The program itself contains no LLM or network calls — all parsing is algorithmic.
+
+**The problem:** Clinical trial statisticians produce SAS outputs as fixed-width monospace `.txt` files. These are the official analysis results for regulatory submission (ICH E3 / CTD format). They are human-readable but not machine-readable — no structure, just aligned text. The goal is to convert them into a clean, navigable HTML document that a medical reviewer or biostatistician can open in any browser.
+
+**The data (study XLAB-114-1807):** A Phase 3 clinical trial comparing EFG PH70 SC (an immunoglobulin therapy) vs placebo for CIDP (Chronic Inflammatory Demyelinating Polyneuropathy), a rare autoimmune nerve disease. The output contains ~110 tables covering: analysis sets, ECI (Evidence of Clinical Improvement) responder rates, time-to-event (Kaplan-Meier), Cox proportional hazards models, and safety summaries.
+
+**The tool:**
 
 ```
 python sas2html.py <input.txt> -o <output.html>
 ```
 
-**Input fixtures** (do not modify): `small.txt` (1 table) and `big.txt` (many tables). Write outputs to `./out/` (git-ignored). Prove every feature on `small.txt` before moving to `big.txt`.
+**Input fixtures** (do not modify): `small.txt` (1 table) and `big.txt` (~110 tables). Write outputs to `./out/` (git-ignored). Prove every feature on `small.txt` before moving to `big.txt`.
 
 ## Hard Constraints
 
@@ -55,39 +61,44 @@ For each data line, slice by the leaf-column character ranges from the rule line
 
 ## HTML Output Requirements
 
-- One `<!DOCTYPE html>` document, one `<head>` with `<meta charset="utf-8">`, one `<style>` block, one `<body>`.
-- Each detected table → one `<table>` element, in source order.
-- Header rows go in `<thead>`; data rows in `<tbody>`.
-- Use `<th>` for header cells (with `colspan` for parent headers) and `<td>` for body cells (`rowspan`/`colspan` as detected).
-- Minimal CSS in the `<style>` block: `table { border-collapse: collapse; }`, `th, td { border: 1px solid #999; padding: 2px 6px; vertical-align: top; }`, plus utility classes `.num { text-align: right; }` and `.ctr { text-align: center; }` applied per column.
-- Do not emit inline styles beyond the `padding-left` used for indentation.
-- Do not emit any content between tables (no titles, no footnotes) — the spec says ignore non-table content.
+The output follows **ICH E3 / CTD appendix** publication style — no vertical cell borders, horizontal rules only, sans-serif labels, monospace data cells.
+
+**Page structure:**
+- Fixed left sidebar (240 px, `#1a1a2e` navy) containing a search/filter input and a grouped TOC. Each table gets an `<a>` link; links are grouped by section prefix (e.g. `14.7.1`, `14.7.5`).
+- Scrollable `<main>` area to the right (`margin-left: 240px`).
+- `IntersectionObserver` JS (vanilla, inline) highlights the active TOC item as the user scrolls and auto-scrolls the sidebar to keep it visible.
+
+**Per table:**
+- Wrapped in `<section class="table-section" id="table-{idx}">` for anchor linking.
+- Title in `<h2 class="table-title">`, analysis-set label in `<p class="table-subtitle">`.
+- Header rows in `<thead>`, data rows in `<tbody>`. `<th colspan=N>` for parent headers.
+- Only the inline `padding-left` style is emitted on `<td>` (indentation). All other styling via CSS classes: `.num` (right-align), `.ctr` (center), `.lft` (left).
+
+**Table styling (publication style):**
+- `border-collapse: collapse`, no outer border, no vertical cell borders.
+- `border-top: 1.5px solid #1a1a2e` on first `<thead>` row; `border-bottom: 1.5px solid` on last `<thead>` row; `border-bottom: 1px solid` on last `<tbody>` row.
+- `<th>` uses system-ui/sans-serif; `<td>` uses `'Courier New', monospace`.
+- Even `<tbody>` rows get `background: #f7f8fa` zebra striping.
 
 ## Module Layout
 
-Keep the code functional and modular. Aim for this shape:
+Two-file structure — keep all logic in these files, no additional modules:
 
 ```
-sas2html.py            # CLI entry point; arg parsing; orchestrates pipeline
-parser/
-  __init__.py
-  lines.py             # classify_line(line) -> {'blank','rule','text'}; utilities
-  tables.py            # find_table_blocks(lines) -> list[TableBlock]
-  columns.py           # columns_from_rule(rule_line) -> list[(start, end)]
-  headers.py           # build_header_tree(header_lines, leaf_cols) -> HeaderNode
-  cells.py             # extract_row(line, leaf_cols), detect_alignment, detect_rowspans
-render/
-  html.py              # render_document(tables) -> str
-tests/
-  test_lines.py
-  test_columns.py
-  test_headers.py
-  test_cells.py
-  test_end_to_end_small.py
-  test_end_to_end_big.py
+sas2html.py     # CLI entry point (~30 lines): argparse, read input, call convert(), write output
+sas_parser.py   # All parsing and rendering logic (~700 lines), 7 classes + convert()
 ```
 
-Functions preferred over classes except where a small dataclass (e.g. `Column`, `HeaderNode`, `TableBlock`) genuinely clarifies the data.
+| Class | Role |
+|-------|------|
+| `LineClassifier` | Classifies raw lines (blank, full_rule, dash_rule, page_header, table_title, footnote) |
+| `PageStitcher` | Splits file into pages, extracts `TableBlock`s, stitches continuation pages |
+| `ColumnDetector` | Derives leaf column geometry `(start, end)` from the dash rule with the most runs |
+| `HeaderParser` | Builds multi-level header rows with `colspan` using bottom-up span accumulation |
+| `BodyParser` | Slices data rows by column ranges; detects alignment; merges label-overflow continuations |
+| `HTMLRenderer` | Emits the full ICH E3/CTD HTML document with sidebar TOC and publication-style tables |
+
+`render_document` accepts `list[tuple[str, str]]` — `(title, rendered_table_html)` pairs. `render_table` takes an `idx` int used for the `id="table-{idx}"` anchor.
 
 ## Build & Test Commands
 

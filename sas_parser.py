@@ -565,35 +565,243 @@ class BodyParser:
 
 class HTMLRenderer:
     CSS = """
-        body { font-family: sans-serif; padding: 1em; }
-        h2 { font-size: 0.95em; color: #444; margin: 1.5em 0 0.2em; }
-        table { border-collapse: collapse; margin-bottom: 2em; }
-        th, td {
-            border: 1px solid #999;
-            padding: 3px 8px;
-            vertical-align: top;
-            font-family: monospace;
-            font-size: 0.82em;
-            white-space: nowrap;
-        }
-        th { background: #f0f0f0; text-align: center; }
-        .num { text-align: right; }
-        .ctr { text-align: center; }
-        .lft { text-align: left; }
-    """
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    font-size: 13px;
+    color: #212529;
+    background: #ffffff;
+    display: flex;
+    min-height: 100vh;
+}
+/* ── Sidebar ── */
+#sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    width: 240px;
+    height: 100vh;
+    background: #1a1a2e;
+    color: #c8c8e0;
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+    font-size: 11px;
+}
+#sidebar-header {
+    padding: 16px 14px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    flex-shrink: 0;
+}
+#sidebar-title {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #505080;
+    margin-bottom: 10px;
+}
+#toc-search {
+    width: 100%;
+    padding: 6px 9px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 3px;
+    color: #e8e8f4;
+    font-size: 11px;
+    font-family: inherit;
+    outline: none;
+    -webkit-appearance: none;
+}
+#toc-search::placeholder { color: #505080; }
+#toc-search:focus {
+    border-color: rgba(123,140,222,0.6);
+    background: rgba(255,255,255,0.11);
+}
+#toc-nav { padding: 6px 0 20px; overflow-y: auto; flex: 1; }
+.toc-group { margin-bottom: 4px; }
+.toc-group-label {
+    padding: 8px 14px 3px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #505080;
+    user-select: none;
+}
+.toc-link {
+    display: block;
+    padding: 4px 12px 4px 14px;
+    font-size: 10.5px;
+    color: #9090b8;
+    text-decoration: none;
+    line-height: 1.35;
+    border-left: 2px solid transparent;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+.toc-link:hover {
+    background: rgba(255,255,255,0.06);
+    color: #d8d8f0;
+    border-left-color: rgba(123,140,222,0.4);
+}
+.toc-link.active {
+    border-left-color: #7b8cde;
+    color: #ffffff;
+    background: rgba(123,140,222,0.14);
+}
+.toc-link.hidden { display: none; }
+.toc-group.hidden { display: none; }
+/* ── Main ── */
+#main {
+    margin-left: 240px;
+    padding: 28px 36px 60px 36px;
+    flex: 1;
+    min-width: 0;
+    overflow-x: hidden;
+}
+/* ── Table section ── */
+.table-section {
+    margin-bottom: 44px;
+    scroll-margin-top: 16px;
+}
+.table-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #1a1a2e;
+    margin-bottom: 2px;
+    line-height: 1.4;
+}
+.table-subtitle {
+    font-size: 10px;
+    color: #666;
+    margin-bottom: 8px;
+    font-style: italic;
+}
+.table-wrap {
+    overflow-x: auto;
+    max-width: 100%;
+}
+/* ── ICH E3 / CTD publication-style table ── */
+table { border-collapse: collapse; width: auto; font-size: 10.5px; }
+thead tr:first-child th { border-top: 1.5px solid #1a1a2e; }
+thead tr:last-child th  { border-bottom: 1.5px solid #1a1a2e; padding-bottom: 5px; }
+tbody tr:last-child td  { border-bottom: 1px solid #1a1a2e; }
+th {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 10.5px;
+    text-align: center;
+    padding: 3px 12px;
+    vertical-align: bottom;
+    background: #ffffff;
+    white-space: nowrap;
+    border: none;
+}
+td {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 10.5px;
+    padding: 2px 12px;
+    vertical-align: top;
+    border: none;
+    white-space: nowrap;
+}
+tbody tr:nth-child(even) td { background: #f7f8fa; }
+.num { text-align: right; }
+.ctr { text-align: center; }
+.lft { text-align: left; }
+"""
 
-    def render_document(self, tables: list[str]) -> str:
-        body = '\n'.join(tables)
+    JS = """
+(function () {
+    var search = document.getElementById('toc-search');
+    search.addEventListener('input', function () {
+        var q = this.value.toLowerCase();
+        document.querySelectorAll('.toc-group').forEach(function (group) {
+            var vis = 0;
+            group.querySelectorAll('.toc-link').forEach(function (a) {
+                var show = !q || a.textContent.toLowerCase().includes(q)
+                        || (a.getAttribute('title') || '').toLowerCase().includes(q);
+                a.classList.toggle('hidden', !show);
+                if (show) vis++;
+            });
+            group.classList.toggle('hidden', vis === 0);
+        });
+    });
+
+    var linkMap = {};
+    document.querySelectorAll('.toc-link').forEach(function (a) {
+        linkMap[a.getAttribute('href').slice(1)] = a;
+    });
+
+    var observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+            if (entry.isIntersecting) {
+                Object.values(linkMap).forEach(function (a) { a.classList.remove('active'); });
+                var link = linkMap[entry.target.id];
+                if (link) {
+                    link.classList.add('active');
+                    link.scrollIntoView({ block: 'nearest' });
+                }
+            }
+        });
+    }, { rootMargin: '-5% 0px -85% 0px', threshold: 0 });
+
+    document.querySelectorAll('.table-section').forEach(function (s) { observer.observe(s); });
+}());
+"""
+
+    @staticmethod
+    def _toc_prefix(title: str) -> str:
+        m = re.match(r'TABLE\s+(\d+\.\d+\.\d+)', title)
+        return m.group(1) if m else 'Other'
+
+    def render_document(self, tables: list[tuple[str, str]]) -> str:
+        # Build sidebar TOC grouped by section prefix
+        groups: dict[str, list[tuple[int, str]]] = {}
+        for i, (title, _) in enumerate(tables):
+            groups.setdefault(self._toc_prefix(title), []).append((i, title))
+
+        toc_parts: list[str] = []
+        for prefix, entries in groups.items():
+            toc_parts.append('<div class="toc-group">')
+            toc_parts.append(f'  <div class="toc-group-label">{escape(prefix)}</div>')
+            for idx, title in entries:
+                toc_parts.append(
+                    f'  <a class="toc-link" href="#table-{idx}"'
+                    f' title="{escape(title)}">{escape(title)}</a>'
+                )
+            toc_parts.append('</div>')
+        toc_html = '\n'.join(toc_parts)
+
+        body_html = '\n'.join(html for _, html in tables)
+
         return (
             '<!DOCTYPE html>\n'
             '<html lang="en">\n'
             '<head>\n'
             '  <meta charset="utf-8">\n'
-            '  <title>SAS Tables</title>\n'
+            '  <meta name="viewport" content="width=device-width, initial-scale=1">\n'
+            '  <title>Clinical Study Tables</title>\n'
             f'  <style>{self.CSS}</style>\n'
             '</head>\n'
             '<body>\n'
-            f'{body}\n'
+            '<nav id="sidebar">\n'
+            '  <div id="sidebar-header">\n'
+            '    <p id="sidebar-title">Clinical Study Tables</p>\n'
+            '    <input id="toc-search" type="search" placeholder="Filter tables\u2026"'
+            ' autocomplete="off">\n'
+            '  </div>\n'
+            '  <div id="toc-nav">\n'
+            f'{toc_html}\n'
+            '  </div>\n'
+            '</nav>\n'
+            '<main id="main">\n'
+            f'{body_html}\n'
+            '</main>\n'
+            f'<script>{self.JS}</script>\n'
             '</body>\n'
             '</html>\n'
         )
@@ -604,31 +812,29 @@ class HTMLRenderer:
         headers: list[list[HeaderCell]],
         rows: list[list[BodyCell]],
         leaf_cols: list[Column],
+        idx: int = 0,
     ) -> str:
         parts: list[str] = []
-
-        # Title + section label as heading
-        parts.append(f'<h2>{escape(block.title)}</h2>')
+        parts.append(f'<section class="table-section" id="table-{idx}">')
+        parts.append(f'  <h2 class="table-title">{escape(block.title)}</h2>')
         if block.section_label:
-            parts.append(f'<p style="font-size:0.85em;color:#555">{escape(block.section_label)}</p>')
+            parts.append(f'  <p class="table-subtitle">{escape(block.section_label)}</p>')
+        parts.append('  <div class="table-wrap">')
+        parts.append('  <table>')
 
-        parts.append('<table>')
-
-        # thead
         if headers:
-            parts.append('  <thead>')
+            parts.append('    <thead>')
             for hrow in headers:
-                parts.append('    <tr>')
+                parts.append('      <tr>')
                 for cell in hrow:
                     cs = f' colspan="{cell.colspan}"' if cell.colspan > 1 else ''
-                    parts.append(f'      <th{cs}>{escape(cell.text)}</th>')
-                parts.append('    </tr>')
-            parts.append('  </thead>')
+                    parts.append(f'        <th{cs}>{escape(cell.text)}</th>')
+                parts.append('      </tr>')
+            parts.append('    </thead>')
 
-        # tbody
-        parts.append('  <tbody>')
+        parts.append('    <tbody>')
         for row in rows:
-            parts.append('    <tr>')
+            parts.append('      <tr>')
             for ci, cell in enumerate(row):
                 align_class = ''
                 if ci < len(leaf_cols):
@@ -638,10 +844,12 @@ class HTMLRenderer:
                 if ci == 0 and cell.indent > 0:
                     indent_style = f' style="padding-left:{cell.indent + 2}ch"'
                 cs = f' colspan="{cell.colspan}"' if cell.colspan > 1 else ''
-                parts.append(f'      <td{align_class}{indent_style}{cs}>{escape(cell.text)}</td>')
-            parts.append('    </tr>')
-        parts.append('  </tbody>')
-        parts.append('</table>')
+                parts.append(f'        <td{align_class}{indent_style}{cs}>{escape(cell.text)}</td>')
+            parts.append('      </tr>')
+        parts.append('    </tbody>')
+        parts.append('  </table>')
+        parts.append('  </div>')
+        parts.append('</section>')
 
         return '\n'.join(parts)
 
@@ -660,16 +868,17 @@ def convert(input_text: str) -> str:
     body_parser = BodyParser()
     renderer = HTMLRenderer()
 
-    rendered_tables: list[str] = []
-    for block in blocks:
+    rendered_tables: list[tuple[str, str]] = []
+    for idx, block in enumerate(blocks):
         leaf_cols = detector.leaf_columns(block.header_lines)
         headers = header_parser.build(block.header_lines, leaf_cols)
         rows = body_parser.extract_rows(block.data_lines, leaf_cols)
 
-        # Detect and apply alignment per column
         for ci, col in enumerate(leaf_cols):
             col.align = body_parser.detect_alignment(rows, ci)
 
-        rendered_tables.append(renderer.render_table(block, headers, rows, leaf_cols))
+        rendered_tables.append(
+            (block.title, renderer.render_table(block, headers, rows, leaf_cols, idx=idx))
+        )
 
     return renderer.render_document(rendered_tables)
